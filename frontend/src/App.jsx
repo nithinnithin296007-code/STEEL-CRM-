@@ -39,34 +39,19 @@ export default function App() {
       <div className="app">
         <nav className="navbar">
           <div className="nav-brand">🏢 Steel CRM</div>
-          <ul className="nav-links">
-            <li><Link to="/"><BarChart3 size={20} /> Dashboard</Link></li>
-            <li><Link to="/customers"><Users size={20} /> Customers</Link></li>
-            <li><Link to="/orders"><ShoppingCart size={20} /> Orders</Link></li>
-            <li><Link to="/tasks"><CheckCircle size={20} /> Tasks</Link></li>
-            <li><Link to="/reminders"><Bell size={20} /> Reminders</Link></li>
-            <li>
-              <button 
-                onClick={toggleDarkMode}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '14px'
-                }}
-              >
-                {isDark ? <Sun size={20} /> : <Moon size={20} />}
-                {isDark ? 'Light' : 'Dark'}
-              </button>
-            </li>
-          </ul>
+          <div className="nav-links">
+            <Link to="/"><BarChart3 size={20} /> Dashboard</Link>
+            <Link to="/customers"><Users size={20} /> Customers</Link>
+            <Link to="/orders"><ShoppingCart size={20} /> Orders</Link>
+            <Link to="/tasks"><CheckCircle size={20} /> Tasks</Link>
+            <Link to="/reminders"><Bell size={20} /> Reminders</Link>
+            <button 
+              onClick={toggleDarkMode}
+              className="theme-toggle"
+            >
+              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
         </nav>
 
         <main className="main-content">
