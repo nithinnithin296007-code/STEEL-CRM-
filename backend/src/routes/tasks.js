@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.get('/customer/:customerId', async (req, res) => {
   try {
     const tasks = await allAsync(
-      'SELECT * FROM tasks WHERE customer_id = ? ORDER BY due_date ASC',
+      'SELECT * FROM tasks WHERE customer_id = $1 ORDER BY due_date ASC',
       [req.params.customerId]
     );
     res.json(tasks);
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
 
     await runAsync(
       `INSERT INTO tasks (id, title, description, customer_id, assigned_to, priority, due_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [id, title, description, customer_id, assigned_to, priority, due_date]
     );
 
@@ -57,8 +57,8 @@ router.put('/:id', async (req, res) => {
 
     await runAsync(
       `UPDATE tasks 
-       SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, assigned_to = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, assigned_to = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7`,
       [title, description, status, priority, due_date, assigned_to, req.params.id]
     );
 
@@ -71,8 +71,8 @@ router.put('/:id', async (req, res) => {
 // Delete task
 router.delete('/:id', async (req, res) => {
   try {
-    await runAsync('DELETE FROM reminders WHERE task_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM tasks WHERE id = ?', [req.params.id]);
+    await runAsync('DELETE FROM reminders WHERE task_id = $1', [req.params.id]);
+    await runAsync('DELETE FROM tasks WHERE id = $1', [req.params.id]);
     res.json({ message: 'Task deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

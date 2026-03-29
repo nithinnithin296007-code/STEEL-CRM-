@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.get('/customer/:customerId', async (req, res) => {
   try {
     const orders = await allAsync(
-      'SELECT * FROM orders WHERE customer_id = ? ORDER BY order_date DESC',
+      'SELECT * FROM orders WHERE customer_id = $1 ORDER BY order_date DESC',
       [req.params.customerId]
     );
     res.json(orders);
@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
 
     await runAsync(
       `INSERT INTO orders (id, customer_id, delivery_date, notes, total_amount)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5)`,
       [order_id, customer_id, delivery_date, notes, 0]
     );
 
@@ -54,14 +54,14 @@ router.post('/', async (req, res) => {
 
         await runAsync(
           `INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, total_price)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6)`,
           [item_id, order_id, item.product_id, item.quantity, item.unit_price, total_price]
         );
       }
     }
 
     await runAsync(
-      'UPDATE orders SET total_amount = ? WHERE id = ?',
+      'UPDATE orders SET total_amount = $1 WHERE id = $2',
       [total_amount, order_id]
     );
 
@@ -78,8 +78,8 @@ router.put('/:id', async (req, res) => {
 
     await runAsync(
       `UPDATE orders 
-       SET status = ?, delivery_date = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
+       SET status = $1, delivery_date = $2, notes = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4`,
       [status, delivery_date, notes, req.params.id]
     );
 
@@ -92,8 +92,8 @@ router.put('/:id', async (req, res) => {
 // Delete order
 router.delete('/:id', async (req, res) => {
   try {
-    await runAsync('DELETE FROM order_items WHERE order_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM orders WHERE id = ?', [req.params.id]);
+    await runAsync('DELETE FROM order_items WHERE order_id = $1', [req.params.id]);
+    await runAsync('DELETE FROM orders WHERE id = $1', [req.params.id]);
     res.json({ message: 'Order deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

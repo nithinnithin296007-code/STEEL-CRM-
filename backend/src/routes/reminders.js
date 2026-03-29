@@ -28,7 +28,7 @@ router.get('/pending', async (req, res) => {
       FROM reminders r
       LEFT JOIN tasks t ON r.task_id = t.id
       LEFT JOIN customers c ON r.customer_id = c.id
-      WHERE r.is_sent = 0 AND r.reminder_time <= datetime('now')
+      WHERE r.is_sent = false AND r.reminder_time <= NOW()
       ORDER BY r.reminder_time ASC
     `);
     res.json(reminders);
@@ -40,13 +40,13 @@ router.get('/pending', async (req, res) => {
 // Create reminder
 router.post('/', async (req, res) => {
   try {
-    const { task_id, customer_id, title, message, reminder_time } = req.body;
+    const { task_id, customer_id, title, message, reminder_time, sound_type } = req.body;
     const id = uuidv4();
 
     await runAsync(
-      `INSERT INTO reminders (id, task_id, customer_id, title, message, reminder_time)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, task_id, customer_id, title, message, reminder_time]
+      `INSERT INTO reminders (id, task_id, customer_id, title, message, reminder_time, sound_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, task_id, customer_id, title, message, reminder_time, sound_type]
     );
 
     res.status(201).json({ id, message: 'Reminder created successfully' });
@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
 router.put('/:id/sent', async (req, res) => {
   try {
     await runAsync(
-      'UPDATE reminders SET is_sent = 1 WHERE id = ?',
+      'UPDATE reminders SET is_sent = true WHERE id = $1',
       [req.params.id]
     );
     res.json({ message: 'Reminder marked as sent' });
@@ -71,7 +71,7 @@ router.put('/:id/sent', async (req, res) => {
 // Delete reminder
 router.delete('/:id', async (req, res) => {
   try {
-    await runAsync('DELETE FROM reminders WHERE id = ?', [req.params.id]);
+    await runAsync('DELETE FROM reminders WHERE id = $1', [req.params.id]);
     res.json({ message: 'Reminder deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
