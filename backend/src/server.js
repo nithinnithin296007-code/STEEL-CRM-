@@ -2,11 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './database/db.js';
-import customerRoutes from './routes/customers.js';
-import orderRoutes from './routes/orders.js';
-import taskRoutes from './routes/tasks.js';
-import reminderRoutes from './routes/reminders.js';
-import analyticsRoutes from './routes/analytics.js';
+
+// Import routes
+import customersRouter from './routes/customers.js';
+import ordersRouter from './routes/orders.js';
+import tasksRouter from './routes/tasks.js';
+import remindersRouter from './routes/reminders.js';
+import analyticsRouter from './routes/analytics.js';
+import aiInsightsRouter from './routes/aiInsights.js';
 
 dotenv.config();
 
@@ -14,36 +17,40 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://steel-crm.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Initialize Database
-initializeDatabase().catch(console.error);
+// Initialize database
+initializeDatabase();
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running', timestamp: new Date() });
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Routes
-app.use('/api/customers', customerRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/reminders', reminderRoutes);
-app.use('/api/analytics', analyticsRoutes);
+app.use('/api/customers', customersRouter);
+app.use('/api/orders', ordersRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/reminders', remindersRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/ai-insights', aiInsightsRouter);
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message });
 });
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Steel CRM Backend running on http://localhost:${PORT}`);
-  console.log(`📊 API docs at http://localhost:${PORT}/api`);
+  console.log(`✅ Steel CRM Backend running on port ${PORT}`);
+  console.log(`📊 API endpoints ready at http://localhost:${PORT}/api`);
 });
