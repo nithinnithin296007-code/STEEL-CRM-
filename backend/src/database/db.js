@@ -1,159 +1,136 @@
-import sqlite3 from 'sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import pkg from 'pg';
+const { Pool } = pkg;
+import dotenv from 'dotenv';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '../../data/crm.db');
+dotenv.config();
 
-if (!fs.existsSync(path.join(__dirname, '../../data'))) {
-  fs.mkdirSync(path.join(__dirname, '../../data'), { recursive: true });
-}
-
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) console.error('Database error:', err);
-  else console.log('✅ Connected to SQLite database');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
 });
 
-export function initializeDatabase() {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run(`
-        CREATE TABLE IF NOT EXISTS customers (
-          id TEXT PRIMARY KEY,
-          company_name TEXT NOT NULL,
-          contact_name TEXT NOT NULL,
-          email TEXT,
-          phone TEXT,
-          address TEXT,
-          city TEXT,
-          state TEXT,
-          country TEXT,
-          status TEXT DEFAULT 'active',
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+export async function initializeDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_name TEXT NOT NULL,
+        contact_name TEXT NOT NULL,
+        phone TEXT,
+        size TEXT,
+        grade TEXT,
+        status TEXT DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS products (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          grade TEXT NOT NULL,
-          size TEXT NOT NULL,
-          unit_price REAL NOT NULL,
-          stock_quantity INTEGER DEFAULT 0,
-          min_stock INTEGER DEFAULT 100,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS products (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        grade TEXT NOT NULL,
+        size TEXT NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        stock_quantity INTEGER DEFAULT 0,
+        min_stock INTEGER DEFAULT 100,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS orders (
-          id TEXT PRIMARY KEY,
-          customer_id TEXT NOT NULL,
-          order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-          delivery_date DATE,
-          status TEXT DEFAULT 'pending',
-          total_amount REAL DEFAULT 0,
-          notes TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY(customer_id) REFERENCES customers(id)
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS orders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customer_id UUID NOT NULL,
+        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        delivery_date DATE,
+        status TEXT DEFAULT 'pending',
+        total_amount DECIMAL(12,2) DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS order_items (
-          id TEXT PRIMARY KEY,
-          order_id TEXT NOT NULL,
-          product_id TEXT NOT NULL,
-          quantity INTEGER NOT NULL,
-          unit_price REAL NOT NULL,
-          total_price REAL NOT NULL,
-          FOREIGN KEY(order_id) REFERENCES orders(id),
-          FOREIGN KEY(product_id) REFERENCES products(id)
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS order_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id UUID NOT NULL,
+        product_id UUID NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        total_price DECIMAL(12,2) NOT NULL,
+        FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        FOREIGN KEY(product_id) REFERENCES products(id)
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS tasks (
-          id TEXT PRIMARY KEY,
-          title TEXT NOT NULL,
-          description TEXT,
-          customer_id TEXT,
-          assigned_to TEXT DEFAULT 'unassigned',
-          status TEXT DEFAULT 'pending',
-          priority TEXT DEFAULT 'medium',
-          due_date DATE,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY(customer_id) REFERENCES customers(id)
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS tasks (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        description TEXT,
+        customer_id UUID,
+        assigned_to TEXT DEFAULT 'unassigned',
+        status TEXT DEFAULT 'pending',
+        priority TEXT DEFAULT 'medium',
+        due_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS reminders (
-          id TEXT PRIMARY KEY,
-          task_id TEXT NOT NULL,
-          customer_id TEXT,
-          title TEXT NOT NULL,
-          message TEXT,
-          reminder_time DATETIME,
-          is_sent BOOLEAN DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY(task_id) REFERENCES tasks(id),
-          FOREIGN KEY(customer_id) REFERENCES customers(id)
-        )
-      `);
+      CREATE TABLE IF NOT EXISTS reminders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        task_id UUID,
+        customer_id UUID,
+        title TEXT NOT NULL,
+        message TEXT,
+        reminder_time TIMESTAMP,
+        sound_type TEXT DEFAULT 'reminder',
+        is_sent BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+        FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      );
 
-      db.run(`
-        CREATE TABLE IF NOT EXISTS activity_logs (
-          id TEXT PRIMARY KEY,
-          customer_id TEXT,
-          order_id TEXT,
-          activity_type TEXT NOT NULL,
-          description TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY(customer_id) REFERENCES customers(id),
-          FOREIGN KEY(order_id) REFERENCES orders(id)
-        )
-      `, (err) => {
-        if (err) reject(err);
-        else {
-          console.log('✅ Database tables created successfully');
-          resolve();
-        }
-      });
-    });
-  });
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        customer_id UUID,
+        order_id UUID,
+        activity_type TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+        FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL
+      );
+    `);
+    console.log('✅ Database tables ready');
+  } catch (err) {
+    console.error('Database error:', err.message);
+  }
 }
 
-export function runAsync(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
+export async function runAsync(sql, params = []) {
+  try {
+    const result = await pool.query(sql, params);
+    return result;
+  } catch (err) {
+    console.error('Query error:', err);
+    throw err;
+  }
 }
 
-export function getAsync(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+export async function getAsync(sql, params = []) {
+  try {
+    const result = await pool.query(sql, params);
+    return result.rows[0];
+  } catch (err) {
+    console.error('Query error:', err);
+    throw err;
+  }
 }
 
-export function allAsync(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+export async function allAsync(sql, params = []) {
+  try {
+    const result = await pool.query(sql, params);
+    return result.rows;
+  } catch (err) {
+    console.error('Query error:', err);
+    throw err;
+  }
 }
 
-export default db;
+export default pool;
