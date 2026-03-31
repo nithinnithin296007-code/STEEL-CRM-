@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Edit, Trash2, Plus, Volume2, VolumeX } from 'lucide-react';
 import { useStore } from '../store/store.js';
-import SearchFilter from '../components/SearchFilter.jsx';
+import SearchFilter from '../components/SearchFilter';
 import { playNotificationSound } from '../utils/sound.js';
 
 export default function Reminders() {

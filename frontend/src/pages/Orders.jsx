@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { useStore } from '../store/store.js';
-import SearchFilter from '../components/SearchFilter.jsx';
+import SearchFilter from '../components/SearchFilter';
 
 export default function Orders() {
   const { orders, customers, addOrder, updateOrder, deleteOrder } = useStore();
