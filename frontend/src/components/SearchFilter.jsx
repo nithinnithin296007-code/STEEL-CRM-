@@ -1,6 +1,5 @@
 import { Search, X } from 'lucide-react';
 import { useState } from 'react';
-import '../styles/SearchFilter.css';
 
 export default function SearchFilter({ onFilter, filterOptions = {} }) {
   const [searchTerm, setSearchTerm] = useState('');
