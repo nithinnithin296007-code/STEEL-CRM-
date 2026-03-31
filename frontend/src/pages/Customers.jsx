@@ -1,160 +1,264 @@
-import { useState, useEffect } from 'react';
-import { Trash2, Edit2, Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Edit, Trash2, Plus } from 'lucide-react';
 import { useStore } from '../store/store.js';
-import api from '../services/api.js';
+import SearchFilter from '../components/SearchFilter.jsx';
 
 export default function Customers() {
-  const { customers, setCustomers } = useStore();
-  const [showModal, setShowModal] = useState(false);
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = useStore();
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [filterState, setFilterState] = useState({});
   const [formData, setFormData] = useState({
     company_name: '',
     contact_name: '',
     phone: '',
     size: '',
-    grade: ''
+    grade: '',
+    status: 'active'
   });
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
+  // Filter logic
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(customer => {
+      const searchTerm = filterState.searchTerm?.toLowerCase() || '';
+      const matchesSearch =
+        (customer.company_name?.toLowerCase().includes(searchTerm) || '') ||
+        (customer.contact_name?.toLowerCase().includes(searchTerm) || '') ||
+        (customer.phone?.includes(searchTerm) || '');
 
-  const fetchCustomers = async () => {
+      const matchesStatus = !filterState.status || customer.status === filterState.status;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [customers, filterState]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.company_name || !formData.contact_name || !formData.phone) {
+      alert('Please fill all required fields');
+      return;
+    }
+
     try {
-      const res = await api.get('/customers');
-      setCustomers(res.data);
+      if (editingId) {
+        await updateCustomer(editingId, formData);
+        setEditingId(null);
+      } else {
+        await addCustomer(formData);
+      }
+
+      setFormData({
+        company_name: '',
+        contact_name: '',
+        phone: '',
+        size: '',
+        grade: '',
+        status: 'active'
+      });
+      setShowForm(false);
     } catch (err) {
-      console.error('Error fetching customers:', err);
+      alert('Error: ' + err.message);
     }
   };
 
-  const handleAddClick = () => {
+  const handleEdit = (customer) => {
+    setFormData(customer);
+    setEditingId(customer.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm('Delete this customer?')) {
+      try {
+        await deleteCustomer(id);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
     setEditingId(null);
     setFormData({
       company_name: '',
       contact_name: '',
       phone: '',
       size: '',
-      grade: ''
+      grade: '',
+      status: 'active'
     });
-    setShowModal(true);
-  };
-
-  const handleEditClick = (customer) => {
-    setEditingId(customer.id);
-    setFormData({
-      company_name: customer.company_name,
-      contact_name: customer.contact_name,
-      phone: customer.phone || '',
-      size: customer.size,
-      grade: customer.grade
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (editingId) {
-        await api.put(`/customers/${editingId}`, formData);
-      } else {
-        await api.post('/customers', formData);
-      }
-      
-      await fetchCustomers();
-      setShowModal(false);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error:', err);
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this customer?')) return;
-
-    try {
-      await api.delete(`/customers/${id}`);
-      await fetchCustomers();
-    } catch (err) {
-      console.error('Error deleting customer:', err);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   return (
-    <div>
-      <div className="card-header" style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: '700' }}>👥 Customers</h1>
-        <button 
-          onClick={handleAddClick}
-          className="btn btn-primary"
-        >
-          <Plus size={20} /> Add Customer
-        </button>
-      </div>
+    <>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">👥 Customers ({filteredCustomers.length})</h2>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn btn-primary"
+          >
+            <Plus size={18} /> Add Customer
+          </button>
+        </div>
 
-      {customers.length > 0 ? (
-        <div className="card">
+        {/* SEARCH & FILTER */}
+        <SearchFilter
+          onFilter={setFilterState}
+          filterOptions={{
+            status: ['active', 'inactive', 'pending']
+          }}
+        />
+
+        {/* ADD/EDIT FORM */}
+        {showForm && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-header">
+                {editingId ? '✏️ Edit Customer' : '➕ Add New Customer'}
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>Company Name *</label>
+                  <input
+                    type="text"
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    placeholder="e.g., Laxmi Steel Co"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Contact Name *</label>
+                  <input
+                    type="text"
+                    value={formData.contact_name}
+                    onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                    placeholder="e.g., Rajesh Kumar"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Phone *</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="e.g., 9876543210"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Steel Size</label>
+                  <input
+                    type="text"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                    placeholder="e.g., 10mm, 20mm"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Steel Grade</label>
+                  <input
+                    type="text"
+                    value={formData.grade}
+                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                    placeholder="e.g., MS, TMT, HR"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editingId ? 'Update' : 'Create'} Customer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOMERS TABLE */}
+        {filteredCustomers.length === 0 ? (
+          <div className="empty-state">
+            <h3>No customers found</h3>
+            <p>Add your first customer to get started.</p>
+          </div>
+        ) : (
           <div className="table-responsive">
             <table>
               <thead>
                 <tr>
-                  <th>Company Name</th>
-                  <th>Contact Name</th>
-                  <th>Phone 🔒</th>
-                  <th>Steel Size</th>
+                  <th>Company</th>
+                  <th>Contact</th>
+                  <th>Phone</th>
+                  <th>Size</th>
                   <th>Grade</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {customers.map(customer => (
+                {filteredCustomers.map((customer) => (
                   <tr key={customer.id}>
-                    <td style={{ fontWeight: '600' }}>{customer.company_name}</td>
+                    <td className="fw-600">{customer.company_name}</td>
                     <td>{customer.contact_name}</td>
+                    <td>{customer.phone}</td>
+                    <td>{customer.size || '-'}</td>
+                    <td>{customer.grade || '-'}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>🔐 {customer.phone || '—'}</span>
-                        <span style={{ 
-                          fontSize: '11px', 
-                          color: '#16a34a', 
-                          fontWeight: '600',
-                          background: 'rgba(22, 163, 74, 0.1)',
-                          padding: '2px 6px',
-                          borderRadius: '4px'
-                        }}>
-                          Encrypted
-                        </span>
-                      </div>
+                      <span
+                        className={`badge badge-${
+                          customer.status === 'active'
+                            ? 'success'
+                            : customer.status === 'inactive'
+                            ? 'danger'
+                            : 'warning'
+                        }`}
+                      >
+                        {customer.status}
+                      </span>
                     </td>
-                    <td>{customer.size || '—'}</td>
-                    <td>{customer.grade || '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
-                          onClick={() => handleEditClick(customer)}
+                          onClick={() => handleEdit(customer)}
                           className="btn btn-secondary btn-small"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                          title="Edit"
                         >
-                          <Edit2 size={14} /> Edit
+                          <Edit size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(customer.id)}
                           className="btn btn-danger btn-small"
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                          title="Delete"
                         >
-                          <Trash2 size={14} /> Delete
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -163,134 +267,14 @@ export default function Customers() {
               </tbody>
             </table>
           </div>
-        </div>
-      ) : (
-        <div className="empty-state">
-          <h3>No customers yet</h3>
-          <p>Create your first customer to get started</p>
-          <button 
-            onClick={handleAddClick}
-            className="btn btn-primary"
-            style={{ marginTop: '15px' }}
-          >
-            Add Customer
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              {editingId ? '✏️ Edit Customer' : '➕ Add Customer'}
-              
-              {/* Security Badge */}
-              <div style={{ 
-                marginTop: '10px',
-                fontSize: '12px',
-                color: '#16a34a',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                🔐 Data will be encrypted
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Company Name *</label>
-                <input
-                  type="text"
-                  name="company_name"
-                  value={formData.company_name}
-                  onChange={handleInputChange}
-                  placeholder="ABC Steel Co"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Contact Name *</label>
-                <input
-                  type="text"
-                  name="contact_name"
-                  value={formData.contact_name}
-                  onChange={handleInputChange}
-                  placeholder="Rajesh Kumar"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Phone Number 🔐 (Encrypted)</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="9876543210"
-                />
-                <small style={{ color: 'var(--text-secondary)', marginTop: '5px', display: 'block' }}>
-                  This will be encrypted for security
-                </small>
-              </div>
-
-              <div className="form-group">
-                <label>Steel Size</label>
-                <select
-                  name="size"
-                  value={formData.size}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select Size</option>
-                  <option value="5mm">5mm</option>
-                  <option value="8mm">8mm</option>
-                  <option value="10mm">10mm</option>
-                  <option value="12mm">12mm</option>
-                  <option value="16mm">16mm</option>
-                  <option value="20mm">20mm</option>
-                  <option value="25mm">25mm</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Steel Grade</label>
-                <select
-                  name="grade"
-                  value={formData.grade}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select Grade</option>
-                  <option value="MS">MS (Mild Steel)</option>
-                  <option value="HS">HS (High Strength)</option>
-                  <option value="CR">CR (Cold Rolled)</option>
-                  <option value="SS">SS (Stainless Steel)</option>
-                  <option value="TMT">TMT (Thermo Mechanically Treated)</option>
-                </select>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading}
-                >
-                  {loading ? 'Saving...' : editingId ? 'Update Customer' : 'Create Customer'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      <style>{`
+        .fw-600 {
+          font-weight: 600;
+        }
+      `}</style>
+    </>
   );
 }

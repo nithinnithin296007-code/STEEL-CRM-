@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { Edit, Trash2, Plus, Volume2, VolumeX } from 'lucide-react';
 import { useStore } from '../store/store.js';
-import { Trash2, Plus, X, Bell, AlertCircle, Volume2 } from 'lucide-react';
-import { playNotificationSound, showNotification, requestNotificationPermission } from '../utils/sound.js';
+import SearchFilter from '../components/SearchFilter.jsx';
+import { playNotificationSound } from '../utils/sound.js';
 
 export default function Reminders() {
-  const { reminders, tasks, customers, loadingReminders, fetchReminders, addReminder, deleteReminder } = useStore();
-  const [showModal, setShowModal] = useState(false);
+  const { reminders, tasks, customers, addReminder, deleteReminder } = useStore();
+  const [showForm, setShowForm] = useState(false);
+  const [filterState, setFilterState] = useState({});
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [formData, setFormData] = useState({
     task_id: '',
@@ -13,376 +15,276 @@ export default function Reminders() {
     title: '',
     message: '',
     reminder_time: '',
-    sound_type: 'reminder',
+    sound_type: 'reminder'
   });
 
-  useEffect(() => {
-    fetchReminders();
-    requestNotificationPermission();
-    const interval = setInterval(checkReminders, 30000); // Check every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  // Filter logic
+  const filteredReminders = useMemo(() => {
+    return reminders.filter(reminder => {
+      const searchTerm = filterState.searchTerm?.toLowerCase() || '';
+      const matchesSearch =
+        (reminder.title?.toLowerCase().includes(searchTerm) || '') ||
+        (reminder.message?.toLowerCase().includes(searchTerm) || '');
 
-  const checkReminders = () => {
-    reminders.forEach(reminder => {
-      if (!reminder.is_sent && new Date(reminder.reminder_time) <= new Date()) {
-        if (soundEnabled) {
-          playNotificationSound(reminder.sound_type || 'reminder');
-        }
-        showNotification(`📌 ${reminder.title}`, {
-          body: reminder.message || 'Reminder time!',
-          icon: '🏢',
-        });
+      const matchesStatus = !filterState.status || (filterState.status === 'pending' ? !reminder.is_sent : reminder.is_sent);
+
+      if (filterState.dateFrom && new Date(reminder.reminder_time) < new Date(filterState.dateFrom)) {
+        return false;
       }
-    });
-  };
+      if (filterState.dateTo && new Date(reminder.reminder_time) > new Date(filterState.dateTo)) {
+        return false;
+      }
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+      return matchesSearch && matchesStatus;
+    }).sort((a, b) => new Date(b.reminder_time) - new Date(a.reminder_time));
+  }, [reminders, filterState]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await addReminder(formData);
-    resetForm();
+
+    if (!formData.title || !formData.reminder_time) {
+      alert('Please fill required fields');
+      return;
+    }
+
+    try {
+      await addReminder(formData);
+      setFormData({
+        task_id: '',
+        customer_id: '',
+        title: '',
+        message: '',
+        reminder_time: '',
+        sound_type: 'reminder'
+      });
+      setShowForm(false);
+      
+      if (soundEnabled) {
+        playNotificationSound('success');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
   };
 
-  const resetForm = () => {
+  const handleDelete = async (id) => {
+    if (confirm('Delete this reminder?')) {
+      try {
+        await deleteReminder(id);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
     setFormData({
       task_id: '',
       customer_id: '',
       title: '',
       message: '',
       reminder_time: '',
-      sound_type: 'reminder',
+      sound_type: 'reminder'
     });
-    setShowModal(false);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this reminder?')) {
-      await deleteReminder(id);
+  const playSound = (soundType) => {
+    if (soundEnabled) {
+      playNotificationSound(soundType || 'reminder');
     }
   };
 
-  const testSound = (soundType) => {
-    playNotificationSound(soundType);
+  const getTaskTitle = (taskId) => {
+    return tasks.find(t => t.id === taskId)?.title || 'N/A';
   };
-
-  const isPending = (reminder) => {
-    return !reminder.is_sent && new Date(reminder.reminder_time) <= new Date();
-  };
-
-  const isUpcoming = (reminder) => {
-    return !reminder.is_sent && new Date(reminder.reminder_time) > new Date();
-  };
-
-  const pendingReminders = reminders.filter(isPending);
-  const upcomingReminders = reminders.filter(isUpcoming);
-  const sentReminders = reminders.filter(r => r.is_sent);
-
-  if (loadingReminders && reminders.length === 0) {
-    return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p>Loading reminders...</p>
-      </div>
-    );
-  }
 
   return (
-    <div>
-      <div className="card-header" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '600' }}>Reminders</h2>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button 
-              className={`btn btn-small ${soundEnabled ? 'btn-primary' : 'btn-secondary'}`}
+    <>
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">🔔 Reminders ({filteredReminders.length})</h2>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              title={soundEnabled ? 'Sound ON' : 'Sound OFF'}
+              className={`btn ${soundEnabled ? 'btn-primary' : 'btn-secondary'}`}
             >
-              <Volume2 size={18} /> {soundEnabled ? 'Sound ON' : 'Sound OFF'}
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              {soundEnabled ? 'Sound ON' : 'Sound OFF'}
             </button>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-              <Plus size={20} /> Add Reminder
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn-primary"
+            >
+              <Plus size={18} /> Add Reminder
             </button>
           </div>
         </div>
-      </div>
 
-      {pendingReminders.length > 0 && (
-        <div style={{ 
-          background: 'rgba(220, 38, 38, 0.1)', 
-          border: '2px solid #dc2626',
-          borderRadius: '6px',
-          padding: '15px',
-          marginBottom: '20px',
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'center',
-          color: '#dc2626'
-        }}>
-          <Bell size={20} />
-          <div>
-            <strong>{pendingReminders.length}</strong> pending reminder{pendingReminders.length > 1 ? 's' : ''} - Action needed!
-          </div>
-        </div>
-      )}
+        {/* SEARCH & FILTER */}
+        <SearchFilter
+          onFilter={setFilterState}
+          filterOptions={{
+            status: ['pending', 'sent'],
+            dateFrom: true,
+            dateTo: true
+          }}
+        />
 
-      {/* Pending Reminders */}
-      {pendingReminders.length > 0 && (
-        <div className="card" style={{ marginBottom: '20px' }}>
-          <h3 style={{ marginBottom: '15px', color: '#dc2626' }}>⚠️ Pending Reminders</h3>
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Task</th>
-                  <th>Customer</th>
-                  <th>Message</th>
-                  <th>Reminder Time</th>
-                  <th>Sound Type</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingReminders.map(reminder => (
-                  <tr key={reminder.id} style={{ background: 'rgba(220, 38, 38, 0.05)' }}>
-                    <td><strong>{reminder.title}</strong></td>
-                    <td>{reminder.task_title || '-'}</td>
-                    <td>{reminder.company_name || '-'}</td>
-                    <td>{reminder.message ? reminder.message.substring(0, 30) : '-'}</td>
-                    <td>{new Date(reminder.reminder_time).toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className="badge badge-primary">
-                        {reminder.sound_type || 'reminder'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-small btn-danger" onClick={() => handleDelete(reminder.id)} title="Delete">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        {/* ADD FORM */}
+        {showForm && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-header">➕ New Reminder</div>
 
-      {/* Upcoming Reminders */}
-      {upcomingReminders.length > 0 && (
-        <div className="card" style={{ marginBottom: '20px' }}>
-          <h3 style={{ marginBottom: '15px', color: '#2563eb' }}>📅 Upcoming Reminders</h3>
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Task</th>
-                  <th>Customer</th>
-                  <th>Message</th>
-                  <th>Reminder Time</th>
-                  <th>Sound Type</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcomingReminders.map(reminder => (
-                  <tr key={reminder.id}>
-                    <td><strong>{reminder.title}</strong></td>
-                    <td>{reminder.task_title || '-'}</td>
-                    <td>{reminder.company_name || '-'}</td>
-                    <td>{reminder.message ? reminder.message.substring(0, 30) : '-'}</td>
-                    <td>{new Date(reminder.reminder_time).toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className="badge badge-primary">
-                        {reminder.sound_type || 'reminder'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-small btn-danger" onClick={() => handleDelete(reminder.id)} title="Delete">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+              <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                  <label>Title *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Reminder title..."
+                    required
+                  />
+                </div>
 
-      {/* Sent Reminders */}
-      {sentReminders.length > 0 && (
-        <div className="card">
-          <h3 style={{ marginBottom: '15px', color: '#16a34a' }}>✓ Sent Reminders</h3>
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Task</th>
-                  <th>Customer</th>
-                  <th>Message</th>
-                  <th>Reminder Time</th>
-                  <th>Sound Type</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sentReminders.slice(0, 5).map(reminder => (
-                  <tr key={reminder.id} style={{ opacity: 0.6 }}>
-                    <td><strong>{reminder.title}</strong></td>
-                    <td>{reminder.task_title || '-'}</td>
-                    <td>{reminder.company_name || '-'}</td>
-                    <td>{reminder.message ? reminder.message.substring(0, 30) : '-'}</td>
-                    <td>{new Date(reminder.reminder_time).toLocaleString('en-IN')}</td>
-                    <td>
-                      <span className="badge badge-success">
-                        {reminder.sound_type || 'reminder'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-small btn-danger" onClick={() => handleDelete(reminder.id)} title="Delete">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {sentReminders.length > 5 && (
-            <p style={{ marginTop: '10px', color: '#64748b', fontSize: '12px' }}>
-              ... and {sentReminders.length - 5} more sent reminders
-            </p>
-          )}
-        </div>
-      )}
+                <div className="form-group">
+                  <label>Message</label>
+                  <textarea
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    placeholder="Reminder message..."
+                    rows="3"
+                  />
+                </div>
 
-      {reminders.length === 0 && (
-        <div className="empty-state">
-          <h3>No reminders yet</h3>
-          <p>Create your first reminder to never miss important tasks.</p>
-        </div>
-      )}
-
-      {/* Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 className="modal-header">Create New Reminder</h3>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Reminder Title *</label>
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="e.g., Follow up with client"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Task</label>
-                <select
-                  name="task_id"
-                  value={formData.task_id}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select a task</option>
-                  {tasks.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Customer</label>
-                <select
-                  name="customer_id"
-                  value={formData.customer_id}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select a customer</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.company_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Message</label>
-                <textarea
-                  name="message"
-                  placeholder="Add reminder details..."
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  rows="3"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Sound Type</label>
-                <select
-                  name="sound_type"
-                  value={formData.sound_type}
-                  onChange={handleInputChange}
-                >
-                  <option value="reminder">Reminder (Double Beep)</option>
-                  <option value="success">Success (Ascending)</option>
-                  <option value="alert">Alert (High Pitch)</option>
-                </select>
-                <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-small btn-secondary"
-                    onClick={() => testSound(formData.sound_type)}
+                <div className="form-group">
+                  <label>Related Task</label>
+                  <select
+                    value={formData.task_id}
+                    onChange={(e) => setFormData({ ...formData, task_id: e.target.value })}
                   >
-                    🔊 Test Sound
+                    <option value="">Select Task (Optional)</option>
+                    {tasks.map(t => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Customer</label>
+                  <select
+                    value={formData.customer_id}
+                    onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                  >
+                    <option value="">Select Customer (Optional)</option>
+                    {customers.map(c => (
+                      <option key={c.id} value={c.id}>{c.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Reminder Time *</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.reminder_time}
+                    onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Sound Type</label>
+                  <select
+                    value={formData.sound_type}
+                    onChange={(e) => setFormData({ ...formData, sound_type: e.target.value })}
+                  >
+                    <option value="reminder">Reminder (Beep)</option>
+                    <option value="success">Success (Ding)</option>
+                    <option value="alert">Alert (High)</option>
+                  </select>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="btn btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Create Reminder
                   </button>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Reminder Time *</label>
-                <input
-                  type="datetime-local"
-                  name="reminder_time"
-                  value={formData.reminder_time}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Create Reminder
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* REMINDERS TABLE */}
+        {filteredReminders.length === 0 ? (
+          <div className="empty-state">
+            <h3>No reminders found</h3>
+            <p>Create your first reminder to get started.</p>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Task</th>
+                  <th>Reminder Time</th>
+                  <th>Status</th>
+                  <th>Sound</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReminders.map((reminder) => (
+                  <tr key={reminder.id}>
+                    <td className="fw-600">{reminder.title}</td>
+                    <td>{reminder.task_id ? getTaskTitle(reminder.task_id) : '-'}</td>
+                    <td>{new Date(reminder.reminder_time).toLocaleString('en-IN')}</td>
+                    <td>
+                      <span className={`badge ${reminder.is_sent ? 'badge-success' : 'badge-warning'}`}>
+                        {reminder.is_sent ? 'Sent' : 'Pending'}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => playSound(reminder.sound_type)}
+                        className="btn btn-secondary btn-small"
+                        title="Play Sound"
+                      >
+                        🔊 {reminder.sound_type}
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => handleDelete(reminder.id)}
+                        className="btn btn-danger btn-small"
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .fw-600 {
+          font-weight: 600;
+        }
+      `}</style>
+    </>
   );
 }
