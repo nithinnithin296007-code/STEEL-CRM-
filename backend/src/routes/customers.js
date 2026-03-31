@@ -1,7 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { runAsync, allAsync, getAsync } from '../database/db.js';
-import { encryptObject, decryptObject } from '../services/encryption.js';
+import { encryptData, decryptData, encryptObject, decryptObject } from '../services/encryption.js';
 
 const router = express.Router();
 
@@ -9,10 +9,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const customers = await allAsync('SELECT * FROM customers ORDER BY created_at DESC');
-    
-    // Decrypt sensitive fields
     const decryptedCustomers = customers.map(cust => decryptObject(cust));
-    
     res.json(decryptedCustomers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -24,10 +21,7 @@ router.get('/:id', async (req, res) => {
   try {
     const customer = await getAsync('SELECT * FROM customers WHERE id = $1', [req.params.id]);
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
-    
-    // Decrypt sensitive fields
     const decryptedCustomer = decryptObject(customer);
-    
     res.json(decryptedCustomer);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -39,9 +33,7 @@ router.post('/', async (req, res) => {
   try {
     const { company_name, contact_name, phone, size, grade } = req.body;
     const id = uuidv4();
-
-    // Encrypt sensitive data
-    const encryptedPhone = phone ? require('../services/encryption.js').encryptData(phone) : null;
+    const encryptedPhone = phone ? encryptData(phone) : null;
 
     await runAsync(
       `INSERT INTO customers (id, company_name, contact_name, phone, size, grade)
@@ -60,9 +52,6 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { company_name, contact_name, phone, size, grade, status } = req.body;
-
-    // Encrypt sensitive data
-    const { encryptData } = require('../services/encryption.js');
     const encryptedPhone = phone ? encryptData(phone) : null;
 
     await runAsync(
@@ -87,3 +76,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+export default router;
