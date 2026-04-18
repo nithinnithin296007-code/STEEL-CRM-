@@ -2,11 +2,12 @@ import * as XLSX from 'xlsx';
 
 export function exportCustomersToExcel(customers) {
     const rows = customers.map(c => ({
-        Name: c.name || '—',
-        Phone: c.phone || '—',
-        Email: c.email || '—',
-        Address: c.address || '—',
-        'Added On': c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN') : '—',
+        'Company Name': c.company_name || '—',
+        'Contact Name': c.contact_name || '—',
+        'Phone': c.phone || '—',
+        'Size': c.size || '—',
+        'Grade': c.grade || '—',
+        'Status': c.status || '—',
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -17,10 +18,11 @@ export function exportCustomersToExcel(customers) {
 
 export function exportOrdersToExcel(orders) {
     const rows = orders.map(o => ({
-        'Customer': o.customer_name || '—',
+        'Company': o.customer_name || '—',
         'Amount (₹)': Number(o.total_amount || 0),
         'Status': o.status || '—',
-        'Order Date': o.order_date ? new Date(o.order_date).toLocaleDateString('en-IN') : '—',
+        'Delivery Date': o.delivery_date ? new Date(o.delivery_date).toLocaleDateString('en-IN') : '—',
+        'Notes': o.notes || '—',
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
