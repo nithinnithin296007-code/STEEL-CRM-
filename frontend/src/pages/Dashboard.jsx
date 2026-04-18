@@ -143,11 +143,10 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Customers', value: stats?.total_customers || 0, color: '#2563eb', bg: '#eff6ff', icon: '👥' },
           { label: 'Open Orders', value: openOrders.length, color: '#ea580c', bg: '#fff7ed', icon: '📦' },
-          { label: 'Revenue', value: `₹${(stats?.total_revenue || 0).toLocaleString('en-IN')}`, color: '#16a34a', bg: '#f0fdf4', icon: '💰' },
           { label: 'Pending Tasks', value: pendingTasks.length, color: '#dc2626', bg: '#fef2f2', icon: '✅' },
         ].map((s, i) => (
           <div key={i} style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 14 }}>
