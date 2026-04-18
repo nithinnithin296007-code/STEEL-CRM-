@@ -5,7 +5,7 @@ import SearchFilter from '../components/SearchFilter.jsx';
 import { exportCustomersToExcel } from '../utils/export.js';
 
 const TEMPLATES = [
-  { label: 'Follow Up', message: (c) => `Hi ${c.contact_name}, this is a follow-up regarding your account with us at Steel CRM. Please let us know if you need anything.` },
+  { label: 'Follow Up', message: (c) => `Hi ${c.contact_name}, this is a follow-up regarding your account with us at Srinivas Traders. Please let us know if you need anything.` },
   { label: 'Order Ready', message: (c) => `Hi ${c.contact_name}, your order is ready for delivery. Please confirm your availability. Thank you!` },
   { label: 'Payment Reminder', message: (c) => `Hi ${c.contact_name}, this is a gentle reminder regarding your pending payment. Kindly arrange at the earliest. Thank you.` },
   { label: 'New Offer', message: (c) => `Hi ${c.contact_name}, we have a new offer on steel materials that may interest you. Please contact us for details!` },
