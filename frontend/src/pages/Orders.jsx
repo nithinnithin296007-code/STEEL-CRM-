@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { useStore } from '../store/store.js';
 import SearchFilter from '../components/SearchFilter';
+import { exportOrdersToExcel } from '../utils/export.js';
 
 export default function Orders() {
   const { orders, customers, addOrder, updateOrder, deleteOrder } = useStore();
@@ -130,12 +131,24 @@ export default function Orders() {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">🛒 Orders ({filteredOrders.length})</h2>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn btn-primary"
-          >
-            <Plus size={18} /> New Order
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => exportOrdersToExcel(orders)}
+              style={{
+                background: '#16a34a', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '8px 16px', fontSize: 13,
+                cursor: 'pointer', fontWeight: 500
+              }}
+            >
+              ⬇ Export to Excel
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn-primary"
+            >
+              <Plus size={18} /> New Order
+            </button>
+          </div>
         </div>
 
         {/* SEARCH & FILTER */}

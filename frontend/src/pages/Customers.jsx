@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Edit, Trash2, Plus } from 'lucide-react';
 import { useStore } from '../store/store.js';
 import SearchFilter from '../components/SearchFilter.jsx';
+import { exportCustomersToExcel } from '../utils/export.js';
 
 export default function Customers() {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useStore();
@@ -96,12 +97,24 @@ export default function Customers() {
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">👥 Customers ({filteredCustomers.length})</h2>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn btn-primary"
-          >
-            <Plus size={18} /> Add Customer
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => exportCustomersToExcel(customers)}
+              style={{
+                background: '#16a34a', color: '#fff', border: 'none',
+                borderRadius: 8, padding: '8px 16px', fontSize: 13,
+                cursor: 'pointer', fontWeight: 500
+              }}
+            >
+              ⬇ Export to Excel
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn-primary"
+            >
+              <Plus size={18} /> Add Customer
+            </button>
+          </div>
         </div>
 
         {/* SEARCH & FILTER */}
