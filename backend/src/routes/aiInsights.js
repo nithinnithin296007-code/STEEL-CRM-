@@ -1,5 +1,5 @@
 import express from 'express';
-import { pool } from '../database/db.js';
+import pool from '../database/db.js';
 import { predictRevenue, detectSeasonality, generateInsights } from '../services/aiInsights.js';
 
 const router = express.Router();
