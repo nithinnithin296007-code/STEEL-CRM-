@@ -191,20 +191,9 @@ export default function Reminders() {
                     type="datetime-local"
                     value={formData.reminder_time}
                     onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
+                    min={new Date().toISOString().slice(0, 16)}
                     required
                   />
-                </div>
-
-                <div className="form-group">
-                  <label>Sound Type</label>
-                  <select
-                    value={formData.sound_type}
-                    onChange={(e) => setFormData({ ...formData, sound_type: e.target.value })}
-                  >
-                    <option value="reminder">Reminder (Beep)</option>
-                    <option value="success">Success (Ding)</option>
-                    <option value="alert">Alert (High)</option>
-                  </select>
                 </div>
 
                 <div className="modal-footer">
