@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 import { BarChart3, Users, ShoppingCart, CheckCircle, Bell, Moon, Sun, TrendingUp, Brain } from 'lucide-react';
 import { useStore } from './store/store.js';
 import Dashboard from './pages/Dashboard';
@@ -42,13 +42,27 @@ export default function App() {
         <nav className="navbar">
           <div className="nav-brand">🏢 Steel CRM</div>
           <div className="nav-links">
-            <Link to="/"><BarChart3 size={20} /> Dashboard</Link>
-            <Link to="/customers"><Users size={20} /> Customers</Link>
-            <Link to="/orders"><ShoppingCart size={20} /> Orders</Link>
-            <Link to="/tasks"><CheckCircle size={20} /> Tasks</Link>
-            <Link to="/reminders"><Bell size={20} /> Reminders</Link>
-            <Link to="/analytics"><TrendingUp size={20} /> Analytics</Link>
-            <Link to="/ai-insights"><Brain size={20} /> AI Insights</Link>
+            <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+              <BarChart3 size={16} /> Dashboard
+            </NavLink>
+            <NavLink to="/customers" className={({ isActive }) => isActive ? 'active' : ''}>
+              <Users size={16} /> Customers
+            </NavLink>
+            <NavLink to="/orders" className={({ isActive }) => isActive ? 'active' : ''}>
+              <ShoppingCart size={16} /> Orders
+            </NavLink>
+            <NavLink to="/tasks" className={({ isActive }) => isActive ? 'active' : ''}>
+              <CheckCircle size={16} /> Tasks
+            </NavLink>
+            <NavLink to="/reminders" className={({ isActive }) => isActive ? 'active' : ''}>
+              <Bell size={16} /> Reminders
+            </NavLink>
+            <NavLink to="/analytics" className={({ isActive }) => isActive ? 'active' : ''}>
+              <TrendingUp size={16} /> Analytics
+            </NavLink>
+            <NavLink to="/ai-insights" className={({ isActive }) => isActive ? 'active' : ''}>
+              <Brain size={16} /> AI Insights
+            </NavLink>
             <button 
               onClick={toggleDarkMode}
               className="theme-toggle"
