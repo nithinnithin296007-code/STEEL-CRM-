@@ -9,14 +9,17 @@ export default function Reminders() {
   const [showForm, setShowForm] = useState(false);
   const [filterState, setFilterState] = useState({});
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [formData, setFormData] = useState({
-    task_id: '',
+  const resetForm = {
     customer_id: '',
     title: '',
     message: '',
     reminder_time: '',
+    reminder_date: '',
+    reminder_hour: '09:00',
     sound_type: 'reminder'
-  });
+  };
+
+  const [formData, setFormData] = useState(resetForm);
 
   // Filter logic
   const filteredReminders = useMemo(() => {
@@ -49,14 +52,7 @@ export default function Reminders() {
 
     try {
       await addReminder(formData);
-      setFormData({
-        task_id: '',
-        customer_id: '',
-        title: '',
-        message: '',
-        reminder_time: '',
-        sound_type: 'reminder'
-      });
+      setFormData(resetForm);
       setShowForm(false);
       
       if (soundEnabled) {
@@ -79,14 +75,7 @@ export default function Reminders() {
 
   const handleCancel = () => {
     setShowForm(false);
-    setFormData({
-      task_id: '',
-      customer_id: '',
-      title: '',
-      message: '',
-      reminder_time: '',
-      sound_type: 'reminder'
-    });
+    setFormData(resetForm);
   };
 
   const playSound = (soundType) => {
@@ -131,82 +120,66 @@ export default function Reminders() {
           }}
         />
 
-        {/* ADD FORM */}
         {showForm && (
           <div className="modal-overlay">
-            <div className="modal">
-              <div className="modal-header">➕ New Reminder</div>
-
+            <div className="modal" style={{ maxWidth: 420 }}>
+              <div className="modal-header">🔔 New Reminder</div>
               <form onSubmit={handleSubmit}>
+
                 <div className="form-group">
-                  <label>Title *</label>
+                  <label>What to remind? *</label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Reminder title..."
+                    placeholder="e.g., Collect payment from Rajesh"
                     required
+                    autoFocus
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Message</label>
-                  <textarea
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    placeholder="Reminder message..."
-                    rows="3"
-                  />
+                  <label>When? *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <input
+                      type="date"
+                      value={formData.reminder_date || ''}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setFormData({ ...formData, reminder_date: e.target.value, reminder_time: `${e.target.value}T${formData.reminder_hour || '09:00'}` })}
+                      required
+                      style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontFamily: 'inherit' }}
+                    />
+                    <select
+                      value={formData.reminder_hour || '09:00'}
+                      onChange={(e) => setFormData({ ...formData, reminder_hour: e.target.value, reminder_time: `${formData.reminder_date || ''}T${e.target.value}` })}
+                      style={{ padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontFamily: 'inherit' }}
+                    >
+                      {Array.from({ length: 24 }, (_, i) => {
+                        const h = String(i).padStart(2, '0');
+                        const label = i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`;
+                        return <option key={h} value={`${h}:00`}>{label}</option>;
+                      })}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Related Task</label>
-                  <select
-                    value={formData.task_id}
-                    onChange={(e) => setFormData({ ...formData, task_id: e.target.value })}
-                  >
-                    <option value="">Select Task (Optional)</option>
-                    {tasks.map(t => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Customer</label>
+                  <label>Customer (optional)</label>
                   <select
                     value={formData.customer_id}
                     onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                    style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontFamily: 'inherit' }}
                   >
-                    <option value="">Select Customer (Optional)</option>
+                    <option value="">No customer</option>
                     {customers.map(c => (
                       <option key={c.id} value={c.id}>{c.company_name}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Reminder Time *</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.reminder_time}
-                    onChange={(e) => setFormData({ ...formData, reminder_time: e.target.value })}
-                    min={new Date().toISOString().slice(0, 16)}
-                    required
-                  />
-                </div>
-
                 <div className="modal-footer">
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="btn btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Create Reminder
-                  </button>
+                  <button type="button" onClick={handleCancel} className="btn btn-secondary">Cancel</button>
+                  <button type="submit" className="btn btn-primary">Create Reminder</button>
                 </div>
               </form>
             </div>
